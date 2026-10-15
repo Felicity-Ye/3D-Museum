@@ -1,0 +1,40 @@
+[
+  {
+    "id": "local-qingtongrentouxiang",
+    "modelFile": "qingtongrentouxiang.glb",
+    "modelPath": "/models/qingtongrentouxiang.glb",
+    "name": "商戴金面罩青铜人头像",
+    "category": "青铜器",
+    "period": "中国历史学年代,商(前1600~前1046)",
+    "material": "雕塑、造像",
+    "dimensions": "头纵径14.5，横径12.6，高42.5，宽20.5厘米",
+    "thumbnailPath": "/images/artifacts/qingtongrentouxiang.png",
+    "sourceUrl": "https://www.sxd.cn/relics/detail?id=16880327704607551",
+    "keywords": ["青铜器", "商代", "三星堆", "人头像"],
+    "modelAttribution": "AI 辅助三维重建，仅供数字展示",
+    "modelPosition": [0, 0, 0],
+    "modelRotation": [0, 0, 0],
+    "modelScale": 1,
+    "cameraPosition": [0, 0.12, 5.2],
+    "contentPath": "./content/local-qingtongrentouxiang.md"
+  },
+  {
+    "id": "local-qingtongshenshu",
+    "modelFile": "qingtongshenshu.glb",
+    "modelPath": "/models/qingtongshenshu.glb",
+    "name": "商青铜神树",
+    "category": "青铜器",
+    "period": "中国历史学年代,商(前1600~前1046)",
+    "material": "铜器",
+    "dimensions": "最大径140，高396，树枝残高359，底座直径93.5厘米",
+    "thumbnailPath": "/images/artifacts/qingtongshenshu.png",
+    "sourceUrl": "",
+    "keywords": ["青铜器", "商代", "三星堆", "神树"],
+    "modelAttribution": "AI 辅助三维重建，仅供数字展示",
+    "modelPosition": [0, 0, 0],
+    "modelRotation": [0, 0, 0],
+    "modelScale": 1,
+    "cameraPosition": [0, 0.12, 5.2],
+    "contentPath": "./content/local-qingtongshenshu.md"
+  }
+]

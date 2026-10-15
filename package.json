@@ -1,0 +1,10 @@
+{
+  "name": "sanxingdui-digital-museum",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix references run dev",
+    "build": "npm --prefix references run build",
+    "test": "npm --prefix references test",
+    "lint": "npm --prefix references run lint"
+  }
+}
