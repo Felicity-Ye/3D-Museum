@@ -2,15 +2,16 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
+import { ArtifactHotspotMarkers } from './ArtifactHotspotMarkers.jsx'
 
 // Adapted from 3DCellForge's GeneratedGlbModel: clone GLTF scene/material state,
 // center once from its bounding box, and fit its longest axis to the viewer.
-export function GeneratedGlbModel({ modelUrl, proofMode = false, viewMode = 'solid', modelScale = 1, modelRotation = [0, 0, 0], onSelect }) {
+export function GeneratedGlbModel({ modelUrl, proofMode = false, viewMode = 'solid', modelScale = 1, modelRotation = [0, 0, 0], onSelect, hotspots = [], onSelectHotspot }) {
   const gltf = useGLTF(modelUrl)
   const modelGroupRef = useRef(null)
   const introProgress = useRef(0)
 
-  const { object, scale } = useMemo(() => {
+  const { object, scale, center } = useMemo(() => {
     const cloned = gltf.scene.clone(true)
     const xrayMode = viewMode === 'layers'
     const focusMode = viewMode === 'focus'
@@ -56,7 +57,7 @@ export function GeneratedGlbModel({ modelUrl, proofMode = false, viewMode = 'sol
     const longestAxis = Math.max(size.x, size.y, size.z) || 1
     cloned.position.sub(center)
 
-    return { object: cloned, scale: 3.25 / longestAxis }
+    return { object: cloned, scale: 3.25 / longestAxis, center }
   }, [gltf.scene, viewMode])
 
   useFrame((_, delta) => {
@@ -77,6 +78,12 @@ export function GeneratedGlbModel({ modelUrl, proofMode = false, viewMode = 'sol
       }}
     >
       <primitive object={object} />
+      <ArtifactHotspotMarkers
+        hotspots={hotspots}
+        modelRootRef={modelGroupRef}
+        center={center}
+        onSelect={onSelectHotspot}
+      />
     </group>
   )
 }

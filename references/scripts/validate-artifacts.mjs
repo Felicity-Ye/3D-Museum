@@ -4,6 +4,7 @@ import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { generateArtifactManifest } from './artifact-manifest.mjs'
+import { validateArtifactHotspots } from '../src/data/artifactHotspots.js'
 import { loadArtifactRecords } from '../src/data/artifactMarkdown.js'
 
 const appDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -34,8 +35,10 @@ const documents = await Promise.all(artifactFiles.filter((file) => file.endsWith
   rawMarkdown: await readFile(resolve(artifactDir, file), 'utf8'),
 })))
 const result = loadArtifactRecords(documents, generateArtifactManifest(modelFiles), { assetExists: publicAssetExists })
+const hotspotErrors = validateArtifactHotspots()
 
 for (const error of result.errors) console.error(`错误: ${error}`)
+for (const error of hotspotErrors) console.error(`热点配置错误: ${error}`)
 for (const warning of result.warnings) console.warn(`待核实: ${warning}`)
-if (result.errors.length) process.exitCode = 1
-else console.info(`文物 Markdown 校验通过：${documents.length} 条记录，${result.warnings.length} 条待核实信息。`)
+if (result.errors.length || hotspotErrors.length) process.exitCode = 1
+else console.info(`文物 Markdown 与热点配置校验通过：${documents.length} 条记录，${result.warnings.length} 条待核实信息。`)

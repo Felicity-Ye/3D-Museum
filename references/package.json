@@ -14,8 +14,8 @@
     "artifacts:import": "node scripts/import-artifacts.mjs",
     "artifacts:migrate": "node scripts/migrate-artifacts-to-markdown.mjs",
     "artifacts:validate": "node scripts/validate-artifacts.mjs",
-    "test:visual": "NO_PROXY=localhost,127.0.0.1,::1 no_proxy=localhost,127.0.0.1,::1 playwright test",
-    "test:visual:update": "NO_PROXY=localhost,127.0.0.1,::1 no_proxy=localhost,127.0.0.1,::1 playwright test --update-snapshots",
+    "test:visual": "playwright test",
+    "test:visual:update": "playwright test --update-snapshots",
     "preview": "vite preview"
   },
   "dependencies": {

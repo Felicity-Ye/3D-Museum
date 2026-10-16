@@ -1,0 +1,55 @@
+{
+  "local-qingtongshenshu": [
+    {
+      "id": "base",
+      "name": "镂空山形底座",
+      "description": "铜树底座由三面弧边三角状镂空虚块面构成，三面间以三足相连，构拟出三山相连的“神山”意象。",
+      "position": [
+        0,
+        0.035,
+        0.12
+      ],
+      "cameraOffset": [
+        0.05,
+        0.06,
+        0.75
+      ],
+      "sourceUrl": "https://www.sxd.cn/relics/",
+      "verified": true
+    },
+    {
+      "id": "branches-and-birds",
+      "name": "三层枝与神鸟",
+      "description": "树分三层，每层三枝；每枝有一仰一垂两果枝，果枝上立神鸟。",
+      "position": [
+        0.07,
+        0.91,
+        0.03
+      ],
+      "cameraOffset": [
+        0,
+        0.12,
+        0.65
+      ],
+      "sourceUrl": "https://www.sxd.cn/relics/",
+      "verified": true
+    },
+    {
+      "id": "coiling-dragon",
+      "name": "树侧铜龙",
+      "description": "树侧有一条缘树逶迤而下的铜龙。",
+      "position": [
+        0.15,
+        0.35,
+        0.08
+      ],
+      "cameraOffset": [
+        0.1,
+        0.06,
+        0.6
+      ],
+      "sourceUrl": "https://www.sxd.cn/relics/",
+      "verified": true
+    }
+  ]
+}
