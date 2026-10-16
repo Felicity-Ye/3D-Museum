@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { ContactShadows, OrbitControls } from '@react-three/drei'
-import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pause, Play, X } from 'lucide-react'
 import { Vector3 } from 'three'
 import { ArtifactHotspotCard } from '../components/ArtifactHotspotCard.jsx'
 import { getArtifactTour } from '../data/artifactTours.js'
@@ -11,6 +11,7 @@ import {
   arriveAtTourCamera,
   createTourState,
   exitTour,
+  getTourControlMode,
   moveTourChapter,
   pauseTour,
   resumeTour,
@@ -149,8 +150,8 @@ function Scene({
   const [transitioning, setTransitioning] = useState(true)
   const cameraPosition = useMemo(() => artifact.cameraPosition || [0, 0.12, 5.2], [artifact.cameraPosition])
   const hotspots = useMemo(() => getArtifactHotspots(artifact.id), [artifact.id])
-  const tourOwnsCamera = tourState.status !== 'idle'
   const tourActive = tourState.status === 'playing' || tourState.status === 'paused'
+  const tourOwnsCamera = tourActive || tourState.phase === 'final-transition'
   const tourReturning = tourState.phase === 'final-transition' || tourState.phase === 'completed'
   const tourChapter = tourChapters?.[tourState.chapterIndex]
   const tourPose = useMemo(() => {
@@ -169,7 +170,7 @@ function Scene({
     : `${artifact.id}:manual:${selectionVersion}:${resetVersion}`
   const transitionDuration = tourOwnsCamera
     ? (tourState.phase === 'final-transition' ? tourChapters?.at(-1)?.transitionDuration || 2 : tourChapter?.transitionDuration || 2)
-    : 1
+    : tourState.status === 'completed' ? 0.05 : 1
 
   return (
     <>
@@ -219,14 +220,16 @@ function Scene({
 
 function TourControls({ chapters, state, canStart, onStart, onTogglePause, onPrevious, onNext, onExit, onReplay }) {
   if (!chapters) return null
-  if (state.status === 'idle') {
+  const controlMode = getTourControlMode(state)
+  if (controlMode !== 'player') {
+    const isReplay = controlMode === 'replay'
     return (
       <div className="artifact-tour-start-wrap">
-        <button type="button" className="artifact-tour-start" onClick={onStart} disabled={!canStart}>
+        <button type="button" className="artifact-tour-start" onClick={isReplay ? onReplay : onStart} disabled={!isReplay && !canStart}>
           <Play size={14} fill="currentColor" />
-          开始参观
+          {isReplay ? '重播导览' : '开始参观'}
         </button>
-        {!canStart && <span className="artifact-tour-loading">模型载入中</span>}
+        {!isReplay && !canStart && <span className="artifact-tour-loading">模型载入中</span>}
       </div>
     )
   }
@@ -237,7 +240,6 @@ function TourControls({ chapters, state, canStart, onStart, onTogglePause, onPre
     ? 1
     : Math.min(1, (state.chapterIndex + state.elapsed / duration) / chapters.length)
   const chapterNumber = Math.min(state.chapterIndex + 1, chapters.length)
-  const completed = state.status === 'completed'
 
   return (
     <>
@@ -250,7 +252,7 @@ function TourControls({ chapters, state, canStart, onStart, onTogglePause, onPre
       <div className="artifact-tour-player" aria-label="自动导览控制">
         <div className="artifact-tour-player-top">
           <div className="artifact-tour-chapter-label">
-            <span>{completed ? '导览完成' : `第 ${chapterNumber} / ${chapters.length} 章`}</span>
+            <span>{`第 ${chapterNumber} / ${chapters.length} 章`}</span>
             <strong>{chapter?.title || '文物全貌'}</strong>
           </div>
           <span className="artifact-tour-progress-text">{Math.round(progress * 100)}%</span>
@@ -259,24 +261,16 @@ function TourControls({ chapters, state, canStart, onStart, onTogglePause, onPre
           <i style={{ width: `${progress * 100}%` }} />
         </div>
         <div className="artifact-tour-player-controls">
-          {completed ? (
-            <button type="button" aria-label="重播导览" onClick={onReplay}><RotateCcw size={14} />重播</button>
-          ) : (
-            <button type="button" aria-label="上一章节" onClick={onPrevious} disabled={state.chapterIndex === 0}>
-              <ChevronLeft size={15} />上一章
-            </button>
-          )}
-          {!completed && (
-            <button type="button" className="tour-play-toggle" aria-label={state.status === 'paused' ? '继续导览' : '暂停导览'} onClick={onTogglePause}>
-              {state.status === 'paused' ? <Play size={14} fill="currentColor" /> : <Pause size={14} />}
-              {state.status === 'paused' ? '继续' : '暂停'}
-            </button>
-          )}
-          {!completed && (
-            <button type="button" aria-label="下一章节" onClick={onNext}>
-              下一章<ChevronRight size={15} />
-            </button>
-          )}
+          <button type="button" aria-label="上一章节" onClick={onPrevious} disabled={state.chapterIndex === 0}>
+            <ChevronLeft size={15} />上一章
+          </button>
+          <button type="button" className="tour-play-toggle" aria-label={state.status === 'paused' ? '继续导览' : '暂停导览'} onClick={onTogglePause}>
+            {state.status === 'paused' ? <Play size={14} fill="currentColor" /> : <Pause size={14} />}
+            {state.status === 'paused' ? '继续' : '暂停'}
+          </button>
+          <button type="button" aria-label="下一章节" onClick={onNext}>
+            下一章<ChevronRight size={15} />
+          </button>
           <button type="button" className="tour-exit" aria-label="退出导览" onClick={onExit}>
             <X size={14} />退出
           </button>

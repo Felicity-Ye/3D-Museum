@@ -8,6 +8,12 @@ export function createTourState() {
   }
 }
 
+export function getTourControlMode(state) {
+  if (state.status === 'idle') return 'start'
+  if (state.status === 'completed') return 'replay'
+  return 'player'
+}
+
 export function startTour(state, chapters) {
   if (!chapters.length) return state
   return {

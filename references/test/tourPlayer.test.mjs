@@ -5,6 +5,7 @@ import {
   arriveAtTourCamera,
   createTourState,
   exitTour,
+  getTourControlMode,
   moveTourChapter,
   pauseTour,
   resumeTour,
@@ -68,4 +69,13 @@ test('replay starts again at the overview with a fresh request ID', () => {
   assert.equal(replayed.status, 'playing')
   assert.equal(replayed.chapterIndex, 0)
   assert.equal(replayed.requestId, completed.requestId + 1)
+})
+
+test('completed tours replace the playback bar with a replay entry', () => {
+  const started = startTour(createTourState(), chapters)
+  const returning = moveTourChapter(arriveAtTourCamera(started, started.requestId), chapters.length, chapters)
+  const completed = arriveAtTourCamera(returning, returning.requestId)
+
+  assert.equal(getTourControlMode(completed), 'replay')
+  assert.equal(getTourControlMode(createTourState()), 'start')
 })
