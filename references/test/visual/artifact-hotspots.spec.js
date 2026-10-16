@@ -13,9 +13,31 @@ test('tree hotspots explain verified features, focus the camera, and reset clean
   const guide = page.getByRole('region', { name: '热点讲解' })
   await expect(guide.getByRole('heading', { name: '镂空山形底座' })).toBeVisible()
   await expect(guide.getByRole('link', { name: /三星堆博物馆/ })).toHaveAttribute('href', 'https://www.sxd.cn/relics/')
-  await guide.getByRole('button', { name: '退出热点观察' }).click()
+  await guide.getByRole('button', { name: '退出' }).click()
   await expect(guide).toHaveCount(0)
 
   await page.getByRole('button', { name: /商戴金面罩青铜人头像/ }).click()
   await expect(page.locator('.artifact-hotspot-marker')).toHaveCount(0)
+})
+
+test('repeated hotspot changes do not exhaust WebGL contexts', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /商青铜神树/ }).click()
+
+  const names = ['镂空山形底座', '三层枝与神鸟', '树侧铜龙']
+  const hotspots = names.map((name) => page.getByRole('button', { name, exact: true }))
+  for (const hotspot of hotspots) await expect(hotspot).toBeVisible({ timeout: 60_000 })
+  await page.locator('canvas').evaluate((canvas) => {
+    canvas.addEventListener('webglcontextlost', () => { canvas.dataset.contextLostEvent = 'true' })
+  })
+
+  for (let index = 0; index < 12; index += 1) {
+    const name = names[index % names.length]
+    await hotspots[index % hotspots.length].dispatchEvent('click')
+    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+  }
+
+  await page.waitForTimeout(1_500)
+  const contextLost = await page.locator('canvas').evaluate((canvas) => canvas.dataset.contextLostEvent === 'true')
+  expect(contextLost).toBe(false)
 })

@@ -69,7 +69,7 @@
 - Modify: `references/src/App.css`
 - Create or modify: `references/test/visual/artifact-hotspots.spec.js`（若当前 Playwright/WebGL 可运行；否则记录手动浏览器验收）
 
-- [x] 在现有 viewer-stage 内叠加暗色讲解卡片，避免改变三栏 grid；卡片展示热点名、说明、来源链接及“退出热点观察”。
+- [x] 在现有 viewer-stage 内叠加暗色讲解卡片，避免改变三栏 grid；卡片展示热点名、说明、来源链接及“退出”。
 - [x] 键盘可聚焦 marker、Enter/Space 可选择，Esc/退出按钮可关闭并恢复视角。
 - [x] 空热点数组时不渲染 marker 或卡片；无效热点不阻断模型显示并在开发/数据校验时给出诊断。
 - [x] 验证响应式展示区内卡片不会遮挡必要的模型切换/重置控制；沿用当前深色背景、细边框与金色强调。
