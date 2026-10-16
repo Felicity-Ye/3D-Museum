@@ -7,7 +7,21 @@
       "narration": "先从整体观察这件文物的形态与结构。",
       "duration": 6,
       "transitionDuration": 3,
-      "audioUrl": null
+      "audioUrl": "/audio/local-qingtongshenshu/overview.mp3",
+      "subtitlesUrl": "/audio/local-qingtongshenshu/overview.subtitles.json",
+      "subtitles": [],
+      "cameraKeyframes": [
+        {
+          "time": 2.5,
+          "cameraPreset": "overview",
+          "easing": "ease-in-out"
+        },
+        {
+          "time": 5,
+          "cameraPreset": "overview-close",
+          "easing": "ease-in-out"
+        }
+      ]
     },
     {
       "id": "base",
@@ -15,7 +29,23 @@
       "hotspotId": "base",
       "duration": 7,
       "transitionDuration": 2.2,
-      "audioUrl": null
+      "audioUrl": "/audio/local-qingtongshenshu/base.mp3",
+      "subtitlesUrl": "/audio/local-qingtongshenshu/base.subtitles.json",
+      "subtitles": [],
+      "cameraKeyframes": [
+        {
+          "time": 0.8,
+          "hotspotId": "base",
+          "cameraPreset": "hotspot-close",
+          "easing": "ease-in-out"
+        },
+        {
+          "time": 3.2,
+          "hotspotId": "base",
+          "cameraPreset": "hotspot",
+          "easing": "ease-in-out"
+        }
+      ]
     },
     {
       "id": "branches-and-birds",
@@ -23,7 +53,23 @@
       "hotspotId": "branches-and-birds",
       "duration": 7,
       "transitionDuration": 2.4,
-      "audioUrl": null
+      "audioUrl": "/audio/local-qingtongshenshu/branches-and-birds.mp3",
+      "subtitlesUrl": "/audio/local-qingtongshenshu/branches-and-birds.subtitles.json",
+      "subtitles": [],
+      "cameraKeyframes": [
+        {
+          "time": 0.7,
+          "hotspotId": "branches-and-birds",
+          "cameraPreset": "hotspot-close",
+          "easing": "ease-in-out"
+        },
+        {
+          "time": 3,
+          "hotspotId": "branches-and-birds",
+          "cameraPreset": "hotspot",
+          "easing": "ease-in-out"
+        }
+      ]
     },
     {
       "id": "coiling-dragon",
@@ -31,7 +77,23 @@
       "hotspotId": "coiling-dragon",
       "duration": 7,
       "transitionDuration": 2.2,
-      "audioUrl": null
+      "audioUrl": "/audio/local-qingtongshenshu/coiling-dragon.mp3",
+      "subtitlesUrl": "/audio/local-qingtongshenshu/coiling-dragon.subtitles.json",
+      "subtitles": [],
+      "cameraKeyframes": [
+        {
+          "time": 0.7,
+          "hotspotId": "coiling-dragon",
+          "cameraPreset": "hotspot-close",
+          "easing": "ease-in-out"
+        },
+        {
+          "time": 2.8,
+          "hotspotId": "coiling-dragon",
+          "cameraPreset": "hotspot",
+          "easing": "ease-in-out"
+        }
+      ]
     }
   ]
 }

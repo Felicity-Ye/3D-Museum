@@ -65,9 +65,17 @@ export function advanceTour(state, delta, chapters) {
   return moveTourChapter(state, state.chapterIndex + 1, chapters)
 }
 
+export function seekTour(state, time, chapters) {
+  if (!chapters.length || state.status === 'idle' || state.phase !== 'narration') return state
+  const chapter = chapters[state.chapterIndex]
+  if (!chapter) return state
+  const elapsed = Math.max(0, Math.min(time, chapter.duration))
+  return elapsed === state.elapsed ? state : { ...state, elapsed }
+}
+
 export function arriveAtTourCamera(state, requestId) {
   if (state.requestId !== requestId) return state
-  if (state.status !== 'playing' || !['transition', 'final-transition'].includes(state.phase)) return state
+  if (!['playing', 'paused'].includes(state.status) || !['transition', 'final-transition'].includes(state.phase)) return state
   if (state.phase === 'final-transition') return { ...state, status: 'completed', phase: 'completed', elapsed: 0 }
   return { ...state, phase: 'narration', elapsed: 0 }
 }

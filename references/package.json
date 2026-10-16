@@ -14,6 +14,7 @@
     "artifacts:import": "node scripts/import-artifacts.mjs",
     "artifacts:migrate": "node scripts/migrate-artifacts-to-markdown.mjs",
     "artifacts:validate": "node scripts/validate-artifacts.mjs",
+    "audio:generate": "node scripts/tour-audio-generate.mjs",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
     "preview": "vite preview"

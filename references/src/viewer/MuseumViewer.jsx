@@ -1,7 +1,7 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { ContactShadows, OrbitControls } from '@react-three/drei'
-import { ChevronLeft, ChevronRight, Pause, Play, X } from 'lucide-react'
+import { Captions, ChevronLeft, ChevronRight, Pause, Play, Volume2, VolumeX, X } from 'lucide-react'
 import { Vector3 } from 'three'
 import { ArtifactHotspotCard } from '../components/ArtifactHotspotCard.jsx'
 import { getArtifactTour } from '../data/artifactTours.js'
@@ -16,8 +16,11 @@ import {
   pauseTour,
   resumeTour,
   startTour,
+  seekTour,
 } from './tourPlayer.js'
 import { interpolateCameraPose } from './cameraTransition.js'
+import { cameraPoseAtTime, subtitleAtTime } from './tourTimeline.js'
+import { TourAudioEngine } from './tourAudioEngine.js'
 import { GeneratedGlbModel } from './GlbArtifactModel.jsx'
 import { ViewerErrorBoundary } from './ViewerErrorBoundary.jsx'
 import { canUseWebGL } from '../lib/webgl.js'
@@ -40,6 +43,29 @@ function overviewPose(cameraPosition, zoom = 1) {
   return { position, target }
 }
 
+function resolveTourKeyframe(frame, cameraPosition, hotspotPoseResolver) {
+  let pose = frame.hotspotId
+    ? hotspotPoseResolver?.(frame.hotspotId)
+    : frame.cameraPreset?.startsWith('overview')
+      ? overviewPose(cameraPosition, frame.cameraPreset === 'overview-close' ? 0.88 : 1)
+      : null
+  if (!pose) return null
+  if (frame.cameraPreset?.endsWith('-close')) {
+    const direction = pose.position.clone().sub(pose.target)
+    pose = { ...pose, position: pose.target.clone().add(direction.multiplyScalar(0.82)) }
+  }
+  return pose
+}
+
+function formatTime(value) {
+  const seconds = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
+
+function tourTrackKey(scope, requestId, chapterIndex) {
+  return `${scope}:${requestId}:${chapterIndex}`
+}
+
 function CameraTransition({
   controlsRef,
   cameraPosition,
@@ -50,6 +76,9 @@ function CameraTransition({
   paused,
   onTransitioningChange,
   onTransitionComplete,
+  audioRef,
+  timelineKeyframes,
+  resolveTimelineKeyframe,
 }) {
   const { camera, invalidate } = useThree()
   const startPosition = useRef(new Vector3(...cameraPosition))
@@ -66,6 +95,52 @@ function CameraTransition({
   }, [paused])
 
   useEffect(() => {
+    if (timelineKeyframes?.length && audioRef?.current) {
+      const audio = audioRef.current
+      const timelineAnchor = {
+        position: camera.position.clone(),
+        target: controlsRef.current?.target.clone() || new Vector3(0, 0, 0),
+      }
+      let frameId
+      let lastTime = null
+      let active = true
+      let arrived = false
+      transitioning.current = false
+      onTransitioningChange(false)
+      const applyAtAudioTime = () => {
+        if (!active) return
+        const time = Number.isFinite(audio.currentTime) ? audio.currentTime : 0
+        if ((!pausedRef.current && !audio.paused) || time !== lastTime) {
+          const pose = cameraPoseAtTime(timelineKeyframes, time, resolveTimelineKeyframe, timelineAnchor)
+          if (pose) {
+            camera.position.copy(pose.position)
+            if (controlsRef.current) {
+              controlsRef.current.target.copy(pose.target)
+              controlsRef.current.update()
+            } else camera.lookAt(pose.target)
+            invalidate()
+          }
+          if (!arrived && time >= timelineKeyframes[0].time) {
+            arrived = true
+            onTransitioningChange(false)
+            onTransitionComplete(transitionKey)
+          }
+          lastTime = time
+        }
+        frameId = window.requestAnimationFrame(applyAtAudioTime)
+      }
+      applyAtAudioTime()
+      return () => {
+        active = false
+        window.cancelAnimationFrame(frameId)
+      }
+    }
+
+    return undefined
+  }, [audioRef, camera, controlsRef, invalidate, onTransitionComplete, onTransitioningChange, resolveTimelineKeyframe, timelineKeyframes, transitionKey])
+
+  useEffect(() => {
+    if (timelineKeyframes?.length && audioRef?.current) return undefined
     startPosition.current.copy(camera.position)
     startTarget.current.copy(controlsRef.current?.target || new Vector3(0, 0, 0))
     destination.current.copy(focusPose?.position || new Vector3(...cameraPosition))
@@ -112,7 +187,7 @@ function CameraTransition({
     }
     frameId = window.requestAnimationFrame(animate)
     return () => window.cancelAnimationFrame(frameId)
-  }, [camera, cameraPosition, controlsRef, focusPose, invalidate, onTransitionComplete, onTransitioningChange, resetVersion, transitionDuration, transitionKey])
+  }, [audioRef, camera, cameraPosition, controlsRef, focusPose, invalidate, onTransitionComplete, onTransitioningChange, resetVersion, resolveTimelineKeyframe, timelineKeyframes, transitionDuration, transitionKey])
 
   return null
 }
@@ -145,6 +220,8 @@ function Scene({
   tourChapters,
   tourState,
   onTourCameraComplete,
+  audioRef,
+  audioTrackEnabled,
 }) {
   const controlsRef = useRef(null)
   const [transitioning, setTransitioning] = useState(true)
@@ -154,16 +231,19 @@ function Scene({
   const tourOwnsCamera = tourActive || tourState.phase === 'final-transition'
   const tourReturning = tourState.phase === 'final-transition' || tourState.phase === 'completed'
   const tourChapter = tourChapters?.[tourState.chapterIndex]
+  const keyframes = useMemo(() => tourChapter?.cameraKeyframes || [], [tourChapter])
+  const resolveKeyframe = useCallback((frame) => resolveTourKeyframe(frame, cameraPosition, hotspotPoseResolver), [cameraPosition, hotspotPoseResolver])
   const tourPose = useMemo(() => {
     if (!tourOwnsCamera) return null
     if (tourReturning) return overviewPose(cameraPosition)
+    if (audioTrackEnabled && keyframes[0]) return resolveKeyframe(keyframes[0])
     if (tourChapter?.hotspotId) {
       const pose = hotspotPoseResolver?.(tourChapter.hotspotId)
       return pose ? keepCameraOutsideModel(pose) : null
     }
     if (tourChapter?.cameraPreset === 'overview') return overviewPose(cameraPosition, 0.88)
     return null
-  }, [cameraPosition, hotspotPoseResolver, tourChapter, tourOwnsCamera, tourReturning])
+  }, [audioTrackEnabled, cameraPosition, hotspotPoseResolver, keyframes, resolveKeyframe, tourChapter, tourOwnsCamera, tourReturning])
   const focusPose = tourOwnsCamera ? tourPose : selection?.pose || null
   const transitionKey = tourOwnsCamera
     ? `tour:${tourState.requestId}`
@@ -171,6 +251,7 @@ function Scene({
   const transitionDuration = tourOwnsCamera
     ? (tourState.phase === 'final-transition' ? tourChapters?.at(-1)?.transitionDuration || 2 : tourChapter?.transitionDuration || 2)
     : tourState.status === 'completed' ? 0.05 : 1
+  const timelineKeyframes = audioTrackEnabled && ['transition', 'narration'].includes(tourState.phase) ? keyframes : null
 
   return (
     <>
@@ -211,6 +292,9 @@ function Scene({
         transitionDuration={transitionDuration}
         resetVersion={resetVersion}
         paused={tourState.status === 'paused'}
+        audioRef={audioRef}
+        timelineKeyframes={timelineKeyframes}
+        resolveTimelineKeyframe={resolveKeyframe}
         onTransitioningChange={setTransitioning}
         onTransitionComplete={onTourCameraComplete}
       />
@@ -218,7 +302,7 @@ function Scene({
   )
 }
 
-function TourControls({ chapters, state, canStart, onStart, onTogglePause, onPrevious, onNext, onExit, onReplay }) {
+function TourControls({ chapters, state, canStart, audio, onStart, onTogglePause, onPrevious, onNext, onExit, onReplay, onSeek, onToggleMute, onVolumeChange, onToggleCaptions }) {
   if (!chapters) return null
   const controlMode = getTourControlMode(state)
   if (controlMode !== 'player') {
@@ -235,18 +319,20 @@ function TourControls({ chapters, state, canStart, onStart, onTogglePause, onPre
   }
 
   const chapter = chapters[state.chapterIndex]
-  const duration = chapter?.duration || 1
+  const duration = audio?.duration || chapter?.duration || 1
+  const currentTime = Math.min(audio?.currentTime || 0, duration)
   const progress = state.phase === 'final-transition' || state.phase === 'completed'
     ? 1
-    : Math.min(1, (state.chapterIndex + state.elapsed / duration) / chapters.length)
+    : Math.min(1, (state.chapterIndex + currentTime / duration) / chapters.length)
   const chapterNumber = Math.min(state.chapterIndex + 1, chapters.length)
+  const subtitle = audio?.usingAudio ? audio.currentSubtitle : chapter?.narration
 
   return (
     <>
-      {chapter && (
+      {chapter && audio?.captionsEnabled && subtitle && (
         <div className="artifact-tour-caption" role="status" aria-live="polite">
           <span>{chapter.title}</span>
-          <p>{chapter.narration}</p>
+          <p>{subtitle}</p>
         </div>
       )}
       <div className="artifact-tour-player" aria-label="自动导览控制">
@@ -259,6 +345,10 @@ function TourControls({ chapters, state, canStart, onStart, onTogglePause, onPre
         </div>
         <div className="artifact-tour-progress" aria-label="导览进度">
           <i style={{ width: `${progress * 100}%` }} />
+        </div>
+        <div className="artifact-tour-time-row">
+          <input type="range" className="artifact-tour-seek" aria-label="章节播放进度" min="0" max={duration} step="0.05" value={currentTime} disabled={state.phase === 'final-transition' || (state.phase !== 'narration' && !audio?.usingAudio)} onChange={(event) => onSeek(Number(event.target.value))} />
+          <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
         </div>
         <div className="artifact-tour-player-controls">
           <button type="button" aria-label="上一章节" onClick={onPrevious} disabled={state.chapterIndex === 0}>
@@ -275,6 +365,17 @@ function TourControls({ chapters, state, canStart, onStart, onTogglePause, onPre
             <X size={14} />退出
           </button>
         </div>
+        <div className="artifact-tour-audio-controls">
+          {audio?.hasAudio && <>
+            <button type="button" aria-label={audio?.muted ? '取消静音' : '静音'} onClick={onToggleMute}>
+              {audio?.muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+            </button>
+            <input type="range" aria-label="讲解音量" min="0" max="1" step="0.05" value={audio?.volume ?? 0.82} onChange={(event) => onVolumeChange(Number(event.target.value))} />
+          </>}
+          <button type="button" className={audio?.captionsEnabled ? 'active' : ''} aria-label={audio?.captionsEnabled ? '关闭字幕' : '开启字幕'} onClick={onToggleCaptions}>
+            <Captions size={14} />字幕
+          </button>
+        </div>
       </div>
     </>
   )
@@ -286,9 +387,21 @@ export function MuseumViewer({ artifact, autoRotate = false, resetVersion = 0, o
   const [selectionState, setSelectionState] = useState(() => ({ scope: selectionScope, selection: null, version: 0 }))
   const [tourSession, setTourSession] = useState(() => ({ scope: selectionScope, state: createTourState() }))
   const [modelPoseState, setModelPoseState] = useState(() => ({ scope: selectionScope, resolver: null }))
+  const audioRef = useRef(null)
+  const audioScopeRef = useRef(selectionScope)
+  const audioEngineRef = useRef(null)
+  const audioHandlersRef = useRef({})
+  const tourChaptersRef = useRef(null)
+  const [audioUi, setAudioUi] = useState({ trackKey: null, currentTime: 0, duration: 0, subtitles: [], failed: false, muted: false, volume: 0.82, captionsEnabled: true })
   if (selectionState.scope !== selectionScope) setSelectionState({ scope: selectionScope, selection: null, version: 0 })
   if (tourSession.scope !== selectionScope) setTourSession({ scope: selectionScope, state: createTourState() })
   if (modelPoseState.scope !== selectionScope) setModelPoseState({ scope: selectionScope, resolver: null })
+
+  useLayoutEffect(() => {
+    if (audioScopeRef.current === selectionScope) return
+    audioScopeRef.current = selectionScope
+    audioEngineRef.current?.unload()
+  }, [selectionScope])
 
   const activeSelection = selectionState.scope === selectionScope ? selectionState.selection : null
   const selectionVersion = selectionState.scope === selectionScope ? selectionState.version : 0
@@ -296,6 +409,18 @@ export function MuseumViewer({ artifact, autoRotate = false, resetVersion = 0, o
   const hotspotPoseResolver = modelPoseState.scope === selectionScope ? modelPoseState.resolver : null
   const tourChapters = useMemo(() => getArtifactTour(artifact.id), [artifact.id])
   const tourLocked = tourState.status === 'playing' || tourState.status === 'paused'
+  const currentChapter = tourChapters?.[tourState.chapterIndex]
+  const currentTrackKey = tourTrackKey(selectionScope, tourState.requestId, tourState.chapterIndex)
+  const usingAudio = Boolean(currentChapter?.audioUrl && audioUi.trackKey === currentTrackKey && audioUi.usingAudio && !audioUi.failed)
+  const chapterDuration = usingAudio && audioUi.duration > 0 ? audioUi.duration : currentChapter?.duration || 1
+  const chapterTime = usingAudio ? audioUi.currentTime : tourState.elapsed
+  const timedSubtitle = usingAudio ? subtitleAtTime(audioUi.subtitles, audioUi.currentTime)?.text : null
+  const currentSubtitle = usingAudio
+    ? timedSubtitle || (audioUi.subtitles.length ? '' : currentChapter?.narration || '')
+    : currentChapter?.narration || ''
+  useEffect(() => {
+    tourChaptersRef.current = tourChapters
+  }, [tourChapters])
 
   const onHotspotPoseResolver = useCallback((resolver) => {
     setModelPoseState({ scope: selectionScope, resolver })
@@ -309,18 +434,121 @@ export function MuseumViewer({ artifact, autoRotate = false, resetVersion = 0, o
     })
   }, [selectionScope])
 
-  const onTourCameraComplete = useCallback((transitionKey) => {
-    if (!transitionKey.startsWith('tour:')) return
-    const requestId = Number(transitionKey.slice('tour:'.length))
-    setTourSession((current) => {
-      if (current.scope !== selectionScope) return current
-      const state = arriveAtTourCamera(current.state, requestId)
-      return state === current.state ? current : { ...current, state }
+  const audioHandlers = useMemo(() => ({
+    onTimeUpdate(token, currentTime, duration) {
+      const key = tourTrackKey(token.scope, token.requestId, token.chapterIndex)
+      setAudioUi((current) => current.trackKey === key ? { ...current, currentTime, duration: Number.isFinite(duration) ? duration : current.duration } : current)
+      setTourSession((current) => {
+        if (current.scope !== token.scope || current.state.requestId !== token.requestId || current.state.chapterIndex !== token.chapterIndex || !['playing', 'paused'].includes(current.state.status)) return current
+        if (current.state.elapsed === currentTime) return current
+        return { ...current, state: { ...current.state, elapsed: currentTime } }
+      })
+    },
+    onEnded(token) {
+      setTourSession((current) => {
+        const state = current.state
+        if (current.scope !== token.scope || state.requestId !== token.requestId || state.chapterIndex !== token.chapterIndex || state.status !== 'playing' || !['transition', 'narration'].includes(state.phase)) return current
+        const next = moveTourChapter(state, state.chapterIndex + 1, tourChaptersRef.current || [])
+        return next === state ? current : { ...current, state: next }
+      })
+    },
+    onError(token) {
+      const key = tourTrackKey(token.scope, token.requestId, token.chapterIndex)
+      setAudioUi((current) => current.trackKey === key ? { ...current, failed: true, usingAudio: false } : current)
+      setTourSession((current) => {
+        if (current.scope !== token.scope || current.state.requestId !== token.requestId || current.state.chapterIndex !== token.chapterIndex) return current
+        return { ...current, state: { ...current.state, elapsed: 0 } }
+      })
+    },
+  }), [])
+  useEffect(() => {
+    audioHandlersRef.current = audioHandlers
+  }, [audioHandlers])
+
+  useEffect(() => {
+    if (typeof Audio === 'undefined') return undefined
+    const audio = new Audio()
+    audio.preload = 'auto'
+    audioRef.current = audio
+    audioEngineRef.current = new TourAudioEngine(audio, {
+      onTimeUpdate: (...args) => audioHandlersRef.current.onTimeUpdate?.(...args),
+      onMetadata: (...args) => audioHandlersRef.current.onTimeUpdate?.(...args),
+      onEnded: (...args) => audioHandlersRef.current.onEnded?.(...args),
+      onError: (...args) => audioHandlersRef.current.onError?.(...args),
     })
-  }, [selectionScope])
+    return () => {
+      audioEngineRef.current?.destroy()
+      audioEngineRef.current = null
+      audioRef.current = null
+    }
+  }, [])
+
+  const preloadTourTrack = tourState.status === 'idle' || tourState.status === 'completed'
+  const audioChapter = preloadTourTrack ? tourChapters?.[0] : currentChapter
+  const audioTrackUrl = tourState.phase === 'final-transition' ? null : audioChapter?.audioUrl
+  const audioToken = useMemo(() => ({
+    scope: selectionScope,
+    requestId: tourState.requestId,
+    chapterIndex: preloadTourTrack ? 0 : tourState.chapterIndex,
+  }), [preloadTourTrack, selectionScope, tourState.chapterIndex, tourState.requestId])
+  const audioChapterKey = tourTrackKey(audioToken.scope, audioToken.requestId, audioToken.chapterIndex)
+
+  useEffect(() => {
+    const engine = audioEngineRef.current
+    if (!engine) return undefined
+    if (!audioTrackUrl) {
+      engine.unload()
+      return undefined
+    }
+
+    engine.load(audioTrackUrl, audioToken)
+    let cancelled = false
+    queueMicrotask(() => {
+      if (!cancelled) setAudioUi((current) => ({ ...current, trackKey: audioChapterKey, currentTime: 0, duration: 0, subtitles: audioChapter.subtitles || [], failed: false, usingAudio: true }))
+    })
+    const controller = new AbortController()
+    if (audioChapter.subtitlesUrl) {
+      fetch(audioChapter.subtitlesUrl, { signal: controller.signal })
+        .then((response) => {
+          if (!response.ok) throw new Error(`Subtitle request failed: ${response.status}`)
+          return response.json()
+        })
+        .then((subtitles) => {
+          if (Array.isArray(subtitles)) setAudioUi((current) => current.trackKey === audioChapterKey ? { ...current, subtitles } : current)
+        })
+        .catch((error) => {
+          if (error.name !== 'AbortError') setAudioUi((current) => current.trackKey === audioChapterKey ? { ...current, subtitles: audioChapter.subtitles || [] } : current)
+        })
+    }
+    return () => {
+      cancelled = true
+      controller.abort()
+      engine.unload(audioToken)
+    }
+  }, [audioChapterKey, audioChapter, audioChapter?.subtitlesUrl, audioToken, audioTrackUrl, preloadTourTrack])
+
+  useEffect(() => {
+    audioEngineRef.current?.setVolume(audioUi.volume)
+    audioEngineRef.current?.setMuted(audioUi.muted)
+  }, [audioUi.muted, audioUi.volume])
+
+  useEffect(() => {
+    const engine = audioEngineRef.current
+    if (!engine || !usingAudio) return undefined
+    if (tourState.status === 'paused') {
+      engine.pause()
+      return undefined
+    }
+    if (tourState.status === 'playing') void engine.play()
+    else engine.pause()
+    return undefined
+  }, [usingAudio, tourState.status, tourState.requestId, tourState.chapterIndex])
 
   useEffect(() => {
     if (!tourChapters || tourState.status !== 'playing' || tourState.phase !== 'narration') return undefined
+    const hasAudio = Boolean(currentChapter?.audioUrl)
+    const audioFailed = audioUi.trackKey === currentTrackKey && audioUi.failed
+    if (hasAudio && !audioFailed) return undefined
     let lastFrame = null
     let carriedTime = 0
     let frameId
@@ -342,7 +570,28 @@ export function MuseumViewer({ artifact, autoRotate = false, resetVersion = 0, o
     }
     frameId = window.requestAnimationFrame(tick)
     return () => window.cancelAnimationFrame(frameId)
-  }, [selectionScope, tourChapters, tourState.chapterIndex, tourState.phase, tourState.requestId, tourState.status])
+  }, [audioUi.failed, audioUi.trackKey, currentChapter?.audioUrl, currentTrackKey, selectionScope, tourChapters, tourState.chapterIndex, tourState.phase, tourState.requestId, tourState.status])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return
+      if (usingAudio && tourState.status === 'playing') void audioEngineRef.current?.play()
+      if (usingAudio && audioRef.current) setAudioUi((current) => ({ ...current, currentTime: audioRef.current.currentTime }))
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [tourState.status, usingAudio])
+
+  const onTourCameraComplete = useCallback((transitionKey) => {
+    if (!transitionKey.startsWith('tour:')) return
+    const requestId = Number(transitionKey.slice('tour:'.length))
+    setTourSession((current) => {
+      if (current.scope !== selectionScope) return current
+      const state = arriveAtTourCamera(current.state, requestId)
+      return state === current.state ? current : { ...current, state }
+    })
+  }, [selectionScope])
 
   if (!webglAvailable) {
     return <div className="viewer-message"><strong>当前浏览器无法启动 WebGL</strong><span>请启用硬件加速或更换浏览器后重试。</span></div>
@@ -368,11 +617,26 @@ export function MuseumViewer({ artifact, autoRotate = false, resetVersion = 0, o
   function beginTour() {
     if (!tourChapters || !hotspotPoseResolver) return
     clearSelection()
-    updateTour((state) => startTour(state, tourChapters))
+    const nextState = startTour(tourState, tourChapters)
+    const firstChapter = tourChapters[0]
+    const token = { scope: selectionScope, requestId: nextState.requestId, chapterIndex: 0 }
+    if (firstChapter?.audioUrl && audioEngineRef.current) {
+      const generation = audioEngineRef.current.load(firstChapter.audioUrl, token)
+      setAudioUi((current) => ({ ...current, trackKey: tourTrackKey(selectionScope, nextState.requestId, 0), currentTime: 0, duration: 0, subtitles: firstChapter.subtitles || [], failed: false, usingAudio: true }))
+      void audioEngineRef.current.play(generation)
+    }
+    updateTour(nextState)
   }
 
   function toggleTourPause() {
-    updateTour((state) => state.status === 'paused' ? resumeTour(state) : pauseTour(state))
+    if (tourState.status === 'paused') {
+      updateTour((state) => resumeTour(state))
+      if (usingAudio) void audioEngineRef.current?.play()
+    } else {
+      audioEngineRef.current?.pause()
+      if (usingAudio && audioRef.current) setAudioUi((current) => ({ ...current, currentTime: audioRef.current.currentTime }))
+      updateTour((state) => pauseTour(state))
+    }
   }
 
   function changeTourChapter(delta) {
@@ -380,8 +644,37 @@ export function MuseumViewer({ artifact, autoRotate = false, resetVersion = 0, o
   }
 
   function leaveTour() {
+    audioEngineRef.current?.unload()
+    setAudioUi((current) => ({ ...current, currentTime: 0, duration: 0, failed: false, usingAudio: false }))
     updateTour(exitTour)
     clearSelection()
+  }
+
+  function seekChapter(time) {
+    if (usingAudio) {
+      audioEngineRef.current?.seek(time)
+      setAudioUi((current) => ({ ...current, currentTime: time }))
+      updateTour((state) => ({ ...state, elapsed: time }))
+    } else {
+      updateTour((state) => seekTour(state, time, tourChapters || []))
+    }
+  }
+
+  function changeVolume(volume) {
+    audioEngineRef.current?.setVolume(volume)
+    setAudioUi((current) => ({ ...current, volume }))
+  }
+
+  function toggleMute() {
+    setAudioUi((current) => {
+      const muted = !current.muted
+      audioEngineRef.current?.setMuted(muted)
+      return { ...current, muted }
+    })
+  }
+
+  function toggleCaptions() {
+    setAudioUi((current) => ({ ...current, captionsEnabled: !current.captionsEnabled }))
   }
 
   return (
@@ -414,6 +707,8 @@ export function MuseumViewer({ artifact, autoRotate = false, resetVersion = 0, o
             tourChapters={tourChapters}
             tourState={tourState}
             onTourCameraComplete={onTourCameraComplete}
+            audioRef={audioRef}
+            audioTrackEnabled={usingAudio && tourLocked}
           />
         </Canvas>
         {activeSelection && !tourLocked && (
@@ -423,12 +718,17 @@ export function MuseumViewer({ artifact, autoRotate = false, resetVersion = 0, o
           chapters={tourChapters}
           state={tourState}
           canStart={Boolean(hotspotPoseResolver)}
+          audio={{ currentTime: chapterTime, duration: chapterDuration, usingAudio, hasAudio: Boolean(currentChapter?.audioUrl && audioUi.trackKey === currentTrackKey && !audioUi.failed), currentSubtitle, muted: audioUi.muted, volume: audioUi.volume, captionsEnabled: audioUi.captionsEnabled }}
           onStart={beginTour}
           onTogglePause={toggleTourPause}
           onPrevious={() => changeTourChapter(-1)}
           onNext={() => changeTourChapter(1)}
           onExit={leaveTour}
           onReplay={beginTour}
+          onSeek={seekChapter}
+          onToggleMute={toggleMute}
+          onVolumeChange={changeVolume}
+          onToggleCaptions={toggleCaptions}
         />
       </div>
     </ViewerErrorBoundary>

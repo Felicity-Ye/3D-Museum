@@ -180,6 +180,16 @@ These are loaded from the archived Khronos sample repository and are not bundled
 
 Do not put real API keys in frontend code. Keep secrets in `.env.local`, which is ignored by git.
 
+## Guided Tour Audio
+
+Set `ELEVENLABS_API_KEY` and, optionally, `ELEVENLABS_VOICE_ID` in `.env.local`. Generate the configured bronze tree tour with a chosen voice:
+
+```bash
+npm run audio:generate -- --artifact local-qingtongshenshu --voice YOUR_VOICE_ID --speed 0.92
+```
+
+The command uses the existing chapter narration, skips chapters whose MP3, alignment, and subtitle files already exist, and writes assets under `public/audio/`. To regenerate one chapter, add `--chapter base --force`. The generated sentence subtitle JSON can be reviewed and edited before publishing. The default voice settings favor steady, restrained narration.
+
 ## License
 
 MIT

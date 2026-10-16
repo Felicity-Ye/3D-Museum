@@ -9,6 +9,7 @@ import {
   moveTourChapter,
   pauseTour,
   resumeTour,
+  seekTour,
   startTour,
 } from '../src/viewer/tourPlayer.js'
 
@@ -27,6 +28,13 @@ test('tour starts with a camera transition and begins narration only when it arr
   const narrating = arriveAtTourCamera(started, started.requestId)
   assert.equal(narrating.phase, 'narration')
   assert.equal(advanceTour(narrating, 2, chapters).elapsed, 2)
+})
+
+test('a paused audio camera timeline can finish its current transition without resuming playback', () => {
+  const started = pauseTour(startTour(createTourState(), chapters))
+  const arrived = arriveAtTourCamera(started, started.requestId)
+  assert.equal(arrived.status, 'paused')
+  assert.equal(arrived.phase, 'narration')
 })
 
 test('pausing freezes chapter time and continuing resumes from the same elapsed time', () => {
@@ -78,4 +86,13 @@ test('completed tours replace the playback bar with a replay entry', () => {
 
   assert.equal(getTourControlMode(completed), 'replay')
   assert.equal(getTourControlMode(createTourState()), 'start')
+})
+
+test('seeking updates the fallback narration clock without changing chapter state', () => {
+  const started = startTour(createTourState(), chapters)
+  const narrating = arriveAtTourCamera(started, started.requestId)
+  const sought = seekTour(narrating, 3.25, chapters)
+  assert.equal(sought.elapsed, 3.25)
+  assert.equal(sought.chapterIndex, 0)
+  assert.equal(seekTour(sought, 8, chapters).elapsed, 5)
 })
