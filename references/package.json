@@ -4,14 +4,15 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "predev": "node scripts/artifact-manifest.mjs",
+    "predev": "node scripts/artifact-manifest.mjs && node scripts/validate-artifacts.mjs",
     "dev": "vite",
     "dev:api": "node server.mjs",
-    "prebuild": "node scripts/artifact-manifest.mjs",
+    "prebuild": "node scripts/artifact-manifest.mjs && node scripts/validate-artifacts.mjs",
     "build": "vite build",
     "lint": "eslint .",
     "test": "node --test test/*.test.mjs",
     "artifacts:import": "node scripts/import-artifacts.mjs",
+    "artifacts:migrate": "node scripts/migrate-artifacts-to-markdown.mjs",
     "artifacts:validate": "node scripts/validate-artifacts.mjs",
     "test:visual": "NO_PROXY=localhost,127.0.0.1,::1 no_proxy=localhost,127.0.0.1,::1 playwright test",
     "test:visual:update": "NO_PROXY=localhost,127.0.0.1,::1 no_proxy=localhost,127.0.0.1,::1 playwright test --update-snapshots",
@@ -28,7 +29,8 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "three": "^0.184.0",
-    "undici": "^8.2.0"
+    "undici": "^8.2.0",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

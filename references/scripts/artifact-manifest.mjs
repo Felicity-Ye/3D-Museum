@@ -22,7 +22,7 @@ export function generateArtifactManifest(fileNames) {
 export async function writeArtifactManifest() {
   const names = await readdir(modelDir)
   const manifest = generateArtifactManifest(names)
-  await writeFile(outputPath, `// Generated from public/models. Add display metadata in artifacts.json.\nexport const localArtifactManifest = ${JSON.stringify(manifest, null, 2)}\n`)
+  await writeFile(outputPath, `// Generated from public/models. Add artifact metadata and content in src/data/artifacts/<id>.md.\nexport const localArtifactManifest = ${JSON.stringify(manifest, null, 2)}\n`)
   return manifest
 }
 

@@ -186,7 +186,9 @@ MIT
 
 ## 三星堆文物资料导入
 
-文物基本资料保存在 `src/data/artifacts.json`，每件文物的完整介绍保存在 `src/data/content/<id>.md`。稳定 ID 用于关联 Markdown，`modelFile` 必须与 `public/models/` 中 GLB 文件名完全一致；缩略图可使用同名图片放在 `public/images/artifacts/`。
+每件文物的元数据和介绍统一保存在 `src/data/artifacts/<id>.md`：YAML Front Matter 写结构化字段，分隔线后的 Markdown 正文写介绍。稳定 `id` 同时是文件名（例如 `local-qingtongshenshu.md`）；`modelFile` 必须与 `public/models/` 中 GLB 文件名完全一致，`modelPath` 和 `thumbnailPath` 使用 `/models/...` 与 `/images/...` 资源路径。保留模型位置、旋转、缩放和相机参数，不要为缺失的史实、尺寸或来源编造内容。未知字段留空并列入 `pendingVerification`，来源核实前保持 `sourceVerified: false`；核实并补齐后从待核实列表移除。正文尚未整理时使用 `contentStatus: pending`。
+
+新增文物时，复制一份现有 Markdown 文件，以稳定 ID 命名，编辑 Front Matter 中的资源路径、名称和其他已核实字段，再填写正文。运行 `npm run artifacts:validate` 检查 YAML、字段类型和本地模型/图片路径。也可通过 CSV 导入，脚本会新建单一 Markdown 文件并保留现有正文；新记录缺少的介绍保持为空、标为待补充。
 
 复制 `data/artifact-import-template.csv` 并按列填写文物名称、官网来源 URL 和本地 GLB 文件名，然后运行：
 
@@ -195,4 +197,4 @@ npm run artifacts:import -- --input data/my-artifacts.csv
 npm run artifacts:validate
 ```
 
-导入脚本只关联本地资源，不会访问来源网页或生成文物事实。已有非空资料会保留；缺少来源、缩略图或介绍时会提示，历史事实应以可核实的资料手动填写到对应 Markdown 文件。
+导入脚本只关联本地资源，不会访问来源网页或生成文物事实。已有正文会保留；缺少来源、缩略图或介绍时会提示。历史事实应以可核实的资料手动填写到对应 Markdown 文件；正文补齐后可移除 `contentStatus: pending`。只有仍保留旧 JSON/分离正文文件的旧版检出才需要迁移：先运行 `npm run artifacts:migrate` 预览报告，再运行 `npm run artifacts:migrate -- --write`。迁移命令跳过已存在的目标文件，不会覆盖人工修改。

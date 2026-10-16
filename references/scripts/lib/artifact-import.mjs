@@ -61,13 +61,6 @@ function stableId(modelFile) {
   return slug ? `local-${slug}` : `local-model-${createHash('sha1').update(modelFile).digest('hex').slice(0, 8)}`
 }
 
-function makeMarkdown(sourceUrl) {
-  return [
-    '## 文物描述', '', '资料待补充', '',
-    '## 文化价值', '', '资料待补充', '',
-  ].join('\n')
-}
-
 function asSet(values) {
   return values instanceof Set ? values : new Set(values || [])
 }
@@ -140,15 +133,22 @@ export function importArtifactRows({ rows, catalog, modelFiles, imageFiles, cont
       continue
     }
 
+    const nextSourceUrl = sourceUrl || existing?.sourceUrl || ''
+    const sourceVerified = existing && nextSourceUrl && nextSourceUrl === existing.sourceUrl ? existing.sourceVerified ?? false : false
+    const pendingVerification = new Set(Array.isArray(existing?.pendingVerification) ? existing.pendingVerification : [])
+    const reviewFields = ['name', 'category', 'period', 'material', 'dimensions', 'thumbnailPath', 'sourceUrl']
+    if (sourceVerified) pendingVerification.delete('sourceUrl')
+    else pendingVerification.add('sourceUrl')
     const next = {
       ...(existing || {}),
       id,
       modelFile,
       modelPath: `/models/${encodeURIComponent(modelFile)}`,
       name: name || existing?.name || '',
-      sourceUrl: sourceUrl || existing?.sourceUrl || '',
+      sourceUrl: nextSourceUrl,
+      sourceVerified,
       thumbnailPath: suggestedThumbnail ? `/images/artifacts/${encodeURIComponent(suggestedThumbnail)}` : existing?.thumbnailPath || '',
-      contentPath: existing?.contentPath || `./content/${id}.md`,
+      contentPath: `./artifacts/${id}.md`,
       keywords: existing?.keywords || [],
       modelAttribution: row.modelAttribution?.trim() || existing?.modelAttribution || 'AI 辅助三维重建，仅供数字展示',
       modelPosition: existing?.modelPosition || [0, 0, 0],
@@ -163,12 +163,17 @@ export function importArtifactRows({ rows, catalog, modelFiles, imageFiles, cont
     if (row.keywords?.trim()) {
       next.keywords = row.keywords.split(/[|;；、]/).map((keyword) => keyword.trim()).filter(Boolean)
     }
+    for (const field of reviewFields) {
+      if (typeof next[field] !== 'string' || !next[field].trim()) pendingVerification.add(field)
+    }
+    next.pendingVerification = [...pendingVerification]
     const scale = parseOptionalNumber(row.modelScale, 'modelScale', errors, id)
     if (scale !== undefined) next.modelScale = scale
     records.set(modelFile, next)
 
     if (!contentExists(contentFiles, id) && !createdContentFiles.some((entry) => entry.id === id)) {
-      createdContentFiles.push({ id, fileName: `${id}.md`, markdown: makeMarkdown(next.sourceUrl) })
+      next.contentStatus = 'pending'
+      createdContentFiles.push({ id, fileName: `${id}.md`, markdown: '' })
     }
     if (!next.sourceUrl) warnings.push(`来源链接待补充: ${id}`)
     if (!next.thumbnailPath) warnings.push(`缩略图待补充: ${id}`)

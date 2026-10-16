@@ -4,11 +4,12 @@ import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { generateArtifactManifest } from './artifact-manifest.mjs'
-import { validateArtifactCatalog } from '../src/data/artifactCatalog.js'
+import { loadArtifactRecords } from '../src/data/artifactMarkdown.js'
 
 const appDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const projectDir = resolve(appDir, '..')
 const publicDir = resolve(projectDir, 'public')
+const artifactDir = resolve(appDir, 'src/data/artifacts')
 
 function publicAssetExists(path) {
   if (!path?.startsWith('/')) return false
@@ -24,20 +25,17 @@ function publicAssetExists(path) {
   return existsSync(target)
 }
 
-const [catalogText, modelFiles, contentFiles] = await Promise.all([
-  readFile(resolve(appDir, 'src/data/artifacts.json'), 'utf8'),
+const [artifactFiles, modelFiles] = await Promise.all([
+  readdir(artifactDir).catch(() => []),
   readdir(resolve(publicDir, 'models')),
-  readdir(resolve(appDir, 'src/data/content')).catch(() => []),
 ])
-const catalog = JSON.parse(catalogText)
-const manifest = generateArtifactManifest(modelFiles)
-const contentById = Object.fromEntries(await Promise.all(contentFiles.filter((file) => file.endsWith('.md')).map(async (file) => [
-  file.replace(/\.md$/, ''),
-  await readFile(resolve(appDir, 'src/data/content', file), 'utf8'),
-])))
-const result = validateArtifactCatalog({ manifest, catalog, contentById, assetExists: publicAssetExists })
+const documents = await Promise.all(artifactFiles.filter((file) => file.endsWith('.md')).sort().map(async (file) => ({
+  filePath: resolve(artifactDir, file),
+  rawMarkdown: await readFile(resolve(artifactDir, file), 'utf8'),
+})))
+const result = loadArtifactRecords(documents, generateArtifactManifest(modelFiles), { assetExists: publicAssetExists })
 
 for (const error of result.errors) console.error(`错误: ${error}`)
-for (const warning of result.warnings) console.warn(`警告: ${warning}`)
+for (const warning of result.warnings) console.warn(`待核实: ${warning}`)
 if (result.errors.length) process.exitCode = 1
-else console.info(`文物目录校验通过：${catalog.length} 条记录，${result.warnings.length} 条资料提醒。`)
+else console.info(`文物 Markdown 校验通过：${documents.length} 条记录，${result.warnings.length} 条待核实信息。`)

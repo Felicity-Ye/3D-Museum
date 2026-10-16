@@ -1,4 +1,4 @@
-// Generated from public/models. Add display metadata in artifacts.json.
+// Generated from public/models. Add artifact metadata and content in src/data/artifacts/<id>.md.
 export const localArtifactManifest = [
   {
     "id": "local-qingtongrentouxiang",

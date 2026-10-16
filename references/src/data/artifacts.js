@@ -1,16 +1,15 @@
-import catalog from './artifacts.json'
 import { localArtifactManifest } from './artifact-manifest.generated.js'
-import { mergeArtifactCatalog } from './artifactCatalog.js'
+import { loadArtifactRecords } from './artifactMarkdown.js'
 
-const contentModules = import.meta.glob('./content/*.md', {
+const artifactModules = import.meta.glob('./artifacts/*.md', {
   query: '?raw',
   import: 'default',
   eager: true,
 })
 
-const contentById = Object.fromEntries(Object.entries(contentModules).map(([path, markdown]) => [
-  path.split('/').at(-1).replace(/\.md$/, ''),
-  markdown,
-]))
+const documents = Object.entries(artifactModules).map(([filePath, rawMarkdown]) => ({ filePath, rawMarkdown }))
+const result = loadArtifactRecords(documents, localArtifactManifest)
 
-export const artifacts = mergeArtifactCatalog(localArtifactManifest, catalog, contentById)
+if (result.errors.length) throw new Error(`Invalid artifact data:\n${result.errors.join('\n')}`)
+
+export const artifacts = result.artifacts

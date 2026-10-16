@@ -1,3 +1,38 @@
+---
+id: local-qingtongshenshu
+modelFile: qingtongshenshu.glb
+modelPath: /models/qingtongshenshu.glb
+name: 商青铜神树
+category: 青铜器
+period: 中国历史学年代,商(前1600~前1046)
+material: 铜器
+dimensions: 最大径140，高396，树枝残高359，底座直径93.5厘米
+thumbnailPath: /images/artifacts/qingtongshenshu.png
+sourceUrl: ""
+keywords:
+  - 青铜器
+  - 商代
+  - 三星堆
+  - 神树
+modelAttribution: AI 辅助三维重建，仅供数字展示
+modelPosition:
+  - 0
+  - 0
+  - 0
+modelRotation:
+  - 0
+  - 0
+  - 0
+modelScale: 1
+cameraPosition:
+  - 0
+  - 0.12
+  - 5.2
+contentPath: ./artifacts/local-qingtongshenshu.md
+sourceVerified: false
+pendingVerification:
+  - sourceUrl
+---
 ## 文物描述
 
 Ⅰ号大型铜神树由底座、树和龙三部分组成，采用分段铸造法铸造，使用了套铸、铆铸、嵌铸等工艺，通高3.96米，树干顶部及龙身后段略有残缺。在我国迄今为止所见的全部青铜文物中，这株神树也称得上是形体最大的一件。 铜树底座呈穹窿形，其下为圆形座圈，底座由三面弧边三角状镂空虚块面构成，三面间以内擫势的三足相连属，构拟出三山相连的“神山”意象，座上铸饰象征太阳的“☉”纹与云气纹。树铸于“神山之巅”的正中，卓然挺拔，有直接天宇之势。树分三层，每层三枝，共九枝；每枝上有一仰一垂的两果枝，果枝上立神鸟，树侧有一条缘树逶迤而下的身似绳索相辫的铜龙，整条龙造型怪异诡谲，莫可名状。 关于这株铜树的内涵，目前在学术界尚存在不同看法，但将铜树界定为“神树”，则是共识：一种意见认为，这株铜神树的造型与内涵应与《山海经》中记载的“建木”相关，铜树是古蜀人沟通人神、上下天地的天梯，反映了古蜀人交通于天人之际的特殊宗教权力被古蜀国神权政治集团所独占的情况。与此相对的观点则认为青铜神树并非建木，从其构型分析，更多的与《山海经》描述的“若木”相似。另一种意见认为，青铜神树具有“社”的功能，与载籍所记“桑林”一致，应为“社树”。一种意见认为，铜神树为古蜀人的宇宙树，反映了蜀人的世界观。还有一种观点认为，青铜神树起源于古人对日晕现象的认识，代表东西两极的扶桑与若木。
