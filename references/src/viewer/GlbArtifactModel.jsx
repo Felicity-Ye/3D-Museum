@@ -1,12 +1,13 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { ArtifactHotspotMarkers } from './ArtifactHotspotMarkers.jsx'
+import { getHotspotWorldPose } from '../data/artifactHotspots.js'
 
 // Adapted from 3DCellForge's GeneratedGlbModel: clone GLTF scene/material state,
 // center once from its bounding box, and fit its longest axis to the viewer.
-export function GeneratedGlbModel({ modelUrl, proofMode = false, viewMode = 'solid', modelScale = 1, modelRotation = [0, 0, 0], onSelect, hotspots = [], onSelectHotspot }) {
+export function GeneratedGlbModel({ modelUrl, proofMode = false, viewMode = 'solid', modelScale = 1, modelRotation = [0, 0, 0], onSelect, hotspots = [], hotspotsInteractive = true, onSelectHotspot, onHotspotPoseResolver }) {
   const gltf = useGLTF(modelUrl)
   const modelGroupRef = useRef(null)
   const introProgress = useRef(0)
@@ -60,6 +61,16 @@ export function GeneratedGlbModel({ modelUrl, proofMode = false, viewMode = 'sol
     return { object: cloned, scale: 3.25 / longestAxis, center }
   }, [gltf.scene, viewMode])
 
+  useEffect(() => {
+    if (!modelGroupRef.current || !onHotspotPoseResolver) return undefined
+    onHotspotPoseResolver((hotspotId) => {
+      const hotspot = hotspots.find((item) => item.id === hotspotId)
+      if (!hotspot || !modelGroupRef.current) return null
+      return getHotspotWorldPose(modelGroupRef.current, center, hotspot)
+    })
+    return () => onHotspotPoseResolver(null)
+  }, [center, hotspots, onHotspotPoseResolver])
+
   useFrame((_, delta) => {
     if (introProgress.current >= 1 || !modelGroupRef.current) return
     introProgress.current = Math.min(1, introProgress.current + delta * 2.6)
@@ -80,6 +91,7 @@ export function GeneratedGlbModel({ modelUrl, proofMode = false, viewMode = 'sol
       <primitive object={object} />
       <ArtifactHotspotMarkers
         hotspots={hotspots}
+        interactive={hotspotsInteractive}
         modelRootRef={modelGroupRef}
         center={center}
         onSelect={onSelectHotspot}

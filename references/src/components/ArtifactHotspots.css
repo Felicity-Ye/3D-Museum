@@ -4,6 +4,7 @@
 .artifact-hotspot-dot{position:relative;width:13px;height:13px;border:1px solid #f2d48c;border-radius:50%;background:rgba(195,163,97,.9);box-shadow:0 0 0 4px rgba(195,163,97,.2),0 0 16px rgba(224,190,117,.7);transition:transform .18s ease,box-shadow .18s ease}
 .artifact-hotspot-dot::after{position:absolute;inset:-5px;border:1px solid rgba(225,193,125,.65);border-radius:50%;content:"";animation:hotspot-pulse 2.2s ease-out infinite}
 .artifact-hotspot-marker:hover .artifact-hotspot-dot,.artifact-hotspot-marker:focus-visible .artifact-hotspot-dot{transform:scale(1.16);box-shadow:0 0 0 5px rgba(195,163,97,.3),0 0 20px rgba(224,190,117,.9)}
+.artifact-hotspot-marker.is-disabled{cursor:default;pointer-events:none}
 .artifact-hotspot-label{position:absolute;top:50%;left:calc(100% + 8px);padding:5px 8px;border:1px solid #5b4a2e;background:rgba(17,16,13,.96);color:#e5d2a5;font:11px/1.4 "Noto Serif SC",serif;letter-spacing:.06em;white-space:nowrap;opacity:0;pointer-events:none;transform:translateY(-50%) translateX(-3px);transition:opacity .16s ease,transform .16s ease}
 .artifact-hotspot-marker:hover .artifact-hotspot-label,.artifact-hotspot-marker:focus-visible .artifact-hotspot-label{opacity:1;transform:translateY(-50%) translateX(0)}
 .artifact-hotspot-card{position:absolute;top:24px;right:24px;z-index:4;width:min(330px,calc(100% - 48px));box-sizing:border-box;padding:15px 17px 14px;border:1px solid #55482e;background:rgba(15,15,13,.94);box-shadow:0 12px 38px rgba(0,0,0,.4);backdrop-filter:blur(12px);color:#d2cabb;pointer-events:auto}
@@ -15,3 +16,28 @@
 @keyframes hotspot-pulse{0%{transform:scale(.65);opacity:.75}100%{transform:scale(1.7);opacity:0}}
 @media(max-width:640px){.artifact-hotspot-card{top:14px;right:14px;width:min(300px,calc(100% - 28px));padding:12px 13px}.artifact-hotspot-card h2{font-size:15px}}
 @media(prefers-reduced-motion:reduce){.artifact-hotspot-dot::after{animation:none}}
+
+.artifact-tour-start-wrap{position:absolute;z-index:5;top:18px;right:15px;display:flex;align-items:center;gap:9px}
+.stage-hint{pointer-events:none}
+.viewer-stage:has(.artifact-tour-player) .stage-hint{display:none}
+.artifact-tour-start,.artifact-tour-player button{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid #655333;background:rgba(24,22,17,.94);color:#d4bd83;font:inherit;font-size:11px;line-height:1.2;letter-spacing:.04em;cursor:pointer;backdrop-filter:blur(8px);transition:background .18s,border-color .18s,color .18s}
+.artifact-tour-start{min-height:34px;padding:0 12px;box-shadow:0 5px 20px rgba(0,0,0,.28)}
+.artifact-tour-start:hover,.artifact-tour-player button:hover:not(:disabled){border-color:#a68a54;background:#302818;color:#f0d89b}
+.artifact-tour-start:disabled{opacity:.5;cursor:wait}
+.artifact-tour-loading{color:#8d8777;font-size:10px;text-shadow:0 1px 5px #000}
+.artifact-tour-player{position:absolute;z-index:5;right:18px;bottom:14px;left:18px;max-width:540px;margin:0 auto;padding:10px 12px 8px;border:1px solid rgba(91,76,48,.86);background:rgba(13,13,11,.92);box-shadow:0 10px 30px rgba(0,0,0,.38);backdrop-filter:blur(10px)}
+.artifact-tour-player-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.artifact-tour-chapter-label{display:flex;min-width:0;flex-direction:column;gap:3px}
+.artifact-tour-chapter-label span,.artifact-tour-progress-text{color:#a58d59;font:9px/1.2 ui-monospace,monospace;letter-spacing:.1em}
+.artifact-tour-chapter-label strong{overflow:hidden;color:#e2d7c0;font:500 12px/1.5 "Noto Serif SC",serif;text-overflow:ellipsis;white-space:nowrap}
+.artifact-tour-progress{height:2px;overflow:hidden;background:#302c22}
+.artifact-tour-progress i{display:block;height:100%;background:linear-gradient(90deg,#7e704b,#d0b373);transition:width .2s linear}
+.artifact-tour-player-controls{display:flex;align-items:center;gap:7px;margin-top:8px}
+.artifact-tour-player button{min-height:29px;padding:0 9px;border-color:#39352b;background:#181713;color:#bdb39d;font-size:10px;white-space:nowrap}
+.artifact-tour-player button:disabled{opacity:.35;cursor:default}
+.artifact-tour-player button.tour-play-toggle{border-color:#695638;background:#231f15;color:#e0c58a}
+.artifact-tour-player button.tour-exit{margin-left:auto;color:#9b9381}
+.artifact-tour-caption{position:absolute;z-index:4;right:12%;bottom:108px;left:12%;max-width:630px;margin:auto;padding:10px 15px;border-left:2px solid #9b8049;background:linear-gradient(90deg,rgba(13,13,11,.78),rgba(13,13,11,.36));pointer-events:none;text-shadow:0 1px 8px #000}
+.artifact-tour-caption span{color:#c4a96c;font:9px/1.4 ui-monospace,monospace;letter-spacing:.14em}
+.artifact-tour-caption p{margin:4px 0 0;color:#e0d8c5;font:12px/1.75 "Noto Serif SC",serif;letter-spacing:.025em}
+@media(max-width:640px){.artifact-tour-start-wrap{top:14px;right:12px}.artifact-tour-player{right:9px;bottom:9px;left:9px;padding:8px 9px 7px}.artifact-tour-player-controls{gap:4px}.artifact-tour-player button{gap:4px;min-height:27px;padding:0 6px;font-size:9px}.artifact-tour-caption{right:7%;bottom:100px;left:7%;padding:8px 10px}.artifact-tour-caption p{font-size:11px}}

@@ -1,0 +1,37 @@
+{
+  "local-qingtongshenshu": [
+    {
+      "id": "overview",
+      "title": "文物全貌",
+      "cameraPreset": "overview",
+      "narration": "先从整体观察这件文物的形态与结构。",
+      "duration": 6,
+      "transitionDuration": 3,
+      "audioUrl": null
+    },
+    {
+      "id": "base",
+      "title": "镂空山形底座",
+      "hotspotId": "base",
+      "duration": 7,
+      "transitionDuration": 2.2,
+      "audioUrl": null
+    },
+    {
+      "id": "branches-and-birds",
+      "title": "三层枝与神鸟",
+      "hotspotId": "branches-and-birds",
+      "duration": 7,
+      "transitionDuration": 2.4,
+      "audioUrl": null
+    },
+    {
+      "id": "coiling-dragon",
+      "title": "树侧铜龙",
+      "hotspotId": "coiling-dragon",
+      "duration": 7,
+      "transitionDuration": 2.2,
+      "audioUrl": null
+    }
+  ]
+}

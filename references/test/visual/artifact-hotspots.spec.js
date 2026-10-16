@@ -12,12 +12,31 @@ test('tree hotspots explain verified features, focus the camera, and reset clean
 
   const guide = page.getByRole('region', { name: '热点讲解' })
   await expect(guide.getByRole('heading', { name: '镂空山形底座' })).toBeVisible()
-  await expect(guide.getByRole('link', { name: /三星堆博物馆/ })).toHaveAttribute('href', 'https://www.sxd.cn/relics/')
+  await expect(guide.getByRole('link')).toHaveCount(0)
   await guide.getByRole('button', { name: '退出' }).click()
   await expect(guide).toHaveCount(0)
 
   await page.getByRole('button', { name: /商戴金面罩青铜人头像/ }).click()
   await expect(page.locator('.artifact-hotspot-marker')).toHaveCount(0)
+})
+
+test('tree guided tour starts with subtitles and exit restores hotspot interaction', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /商青铜神树/ }).click()
+
+  const start = page.getByRole('button', { name: '开始参观' })
+  await expect(start).toBeEnabled({ timeout: 60_000 })
+  await start.click()
+  await expect(page.locator('.artifact-tour-caption')).toContainText('文物全貌')
+  await expect(page.getByRole('button', { name: '暂停导览' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '镂空山形底座' })).toBeDisabled()
+
+  await page.getByRole('button', { name: '退出导览' }).click()
+  await expect(page.getByRole('button', { name: '开始参观' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '镂空山形底座' })).toBeEnabled()
+
+  await page.getByRole('button', { name: /商戴金面罩青铜人头像/ }).click()
+  await expect(page.getByRole('button', { name: '开始参观' })).toHaveCount(0)
 })
 
 test('repeated hotspot changes do not exhaust WebGL contexts', async ({ page }) => {

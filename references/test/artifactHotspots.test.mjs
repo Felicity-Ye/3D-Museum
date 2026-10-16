@@ -6,7 +6,7 @@ import {
   getHotspotWorldPose,
   validateArtifactHotspots,
 } from '../src/data/artifactHotspots.js'
-import { advanceCameraPose } from '../src/viewer/cameraTransition.js'
+import { advanceCameraPose, interpolateCameraPose } from '../src/viewer/cameraTransition.js'
 
 const validHotspot = {
   id: 'base',
@@ -81,4 +81,19 @@ test('camera focus advances smoothly and reports completion at the destination',
   assert.equal(finalPose.finished, true)
   assert.ok(finalPose.position.equals(destination))
   assert.ok(finalPose.target.equals(destinationTarget))
+})
+
+test('timed camera interpolation eases both position and target and finishes at its duration', () => {
+  const startPosition = new Vector3(0, 0, 5)
+  const startTarget = new Vector3(0, 0, 0)
+  const destination = new Vector3(1, 2, 3)
+  const destinationTarget = new Vector3(0.5, 0.8, 0)
+  const middle = interpolateCameraPose(startPosition, startTarget, destination, destinationTarget, 1, 2)
+  assert.equal(middle.finished, false)
+  assert.ok(middle.position.distanceTo(startPosition) > 0)
+  assert.ok(middle.target.distanceTo(startTarget) > 0)
+  const final = interpolateCameraPose(startPosition, startTarget, destination, destinationTarget, 2, 2)
+  assert.equal(final.finished, true)
+  assert.ok(final.position.equals(destination))
+  assert.ok(final.target.equals(destinationTarget))
 })

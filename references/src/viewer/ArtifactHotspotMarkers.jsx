@@ -1,7 +1,7 @@
 import { Html } from '@react-three/drei'
 import { getHotspotWorldPose } from '../data/artifactHotspots.js'
 
-function HotspotMarker({ hotspot, modelRootRef, center, onSelect }) {
+function HotspotMarker({ hotspot, modelRootRef, center, onSelect, interactive }) {
   function focusHotspot(event) {
     event.preventDefault()
     event.stopPropagation()
@@ -15,9 +15,10 @@ function HotspotMarker({ hotspot, modelRootRef, center, onSelect }) {
       <Html center zIndexRange={[30, 0]} style={{ pointerEvents: 'auto' }}>
         <button
           type="button"
-          className="artifact-hotspot-marker"
+          className={`artifact-hotspot-marker ${interactive ? '' : 'is-disabled'}`}
           aria-label={hotspot.name}
           title={hotspot.name}
+          disabled={!interactive}
           onClick={focusHotspot}
         >
           <span className="artifact-hotspot-dot" aria-hidden="true" />
@@ -28,7 +29,7 @@ function HotspotMarker({ hotspot, modelRootRef, center, onSelect }) {
   )
 }
 
-export function ArtifactHotspotMarkers({ hotspots, modelRootRef, center, onSelect }) {
+export function ArtifactHotspotMarkers({ hotspots, modelRootRef, center, onSelect, interactive = true }) {
   if (!hotspots.length) return null
 
   return (
@@ -40,6 +41,7 @@ export function ArtifactHotspotMarkers({ hotspots, modelRootRef, center, onSelec
           modelRootRef={modelRootRef}
           center={center}
           onSelect={onSelect}
+          interactive={interactive}
         />
       ))}
     </group>
