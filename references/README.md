@@ -182,13 +182,19 @@ Do not put real API keys in frontend code. Keep secrets in `.env.local`, which i
 
 ## Guided Tour Audio
 
-Set `ELEVENLABS_API_KEY` and, optionally, `ELEVENLABS_VOICE_ID` in `.env.local`. Generate the configured bronze tree tour with a chosen voice:
+The narration uses Microsoft's native Mandarin Xiaoxiao voice through the `edge-tts` Python package. It does not require an API key. Install the audio generator dependency:
 
 ```bash
-npm run audio:generate -- --artifact local-qingtongshenshu --voice YOUR_VOICE_ID --speed 0.92
+python -m pip install -r requirements-audio.txt
 ```
 
-The command uses the existing chapter narration, skips chapters whose MP3, alignment, and subtitle files already exist, and writes assets under `public/audio/`. To regenerate one chapter, add `--chapter base --force`. The generated sentence subtitle JSON can be reviewed and edited before publishing. The default voice settings favor steady, restrained narration.
+Set `EDGE_TTS_VOICE` and `EDGE_TTS_SPEED` in `.env.local` if you want to change the voice or speaking rate. Generate the configured bronze tree tour:
+
+```bash
+npm run audio:generate -- --artifact local-qingtongshenshu --voice zh-CN-XiaoxiaoNeural --speed 0.92
+```
+
+The command uses the existing chapter narration and Edge TTS subtitle timing, skips chapters whose MP3, alignment, and subtitle files already exist, and writes assets under `public/audio/`. To regenerate one chapter, add `--chapter base --force`. The raw SRT boundaries and grouped sentence subtitle JSON can be reviewed and edited before publishing. This generator needs an internet connection while creating audio; playback uses the checked-in MP3 files.
 
 ## License
 

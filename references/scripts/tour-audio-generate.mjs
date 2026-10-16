@@ -1,15 +1,18 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
 import { getArtifactTour } from '../src/data/artifactTours.js'
-import { groupCharacterAlignment } from './tour-audio-utils.mjs'
+import { groupTimedSubtitles, parseSrtSubtitles, restoreSubtitlePunctuation, speedToEdgeRate } from './tour-audio-utils.mjs'
 
 const appDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const configPath = resolve(appDir, 'src/data/artifact-tours.json')
 const publicDir = resolve(appDir, '../public')
+const execFileAsync = promisify(execFile)
 
 function parseArgs(args) {
-  const options = { artifact: 'local-qingtongshenshu', chapter: null, voice: process.env.ELEVENLABS_VOICE_ID, speed: Number(process.env.ELEVENLABS_SPEED || 0.92), force: false }
+  const options = { artifact: 'local-qingtongshenshu', chapter: null, voice: process.env.EDGE_TTS_VOICE || 'zh-CN-XiaoxiaoNeural', speed: Number(process.env.EDGE_TTS_SPEED || 0.92), force: false }
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index]
     const [key, inlineValue] = arg.split('=', 2)
@@ -48,7 +51,7 @@ export async function generateTourAudio(providedOptions) {
   await loadLocalEnvironment()
   const options = providedOptions || parseArgs(process.argv.slice(2))
   if (options.help) {
-    process.stdout.write('Usage: npm run audio:generate -- [--artifact ID] [--chapter ID] [--voice ID] [--speed 0.92] [--force]\n')
+    process.stdout.write('Usage: npm run audio:generate -- [--artifact ID] [--chapter ID] [--voice zh-CN-XiaoxiaoNeural] [--speed 0.92] [--force]\n')
     return
   }
   if (!Number.isFinite(options.speed) || options.speed < 0.7 || options.speed > 1.2) throw new Error('--speed must be between 0.7 and 1.2')
@@ -63,7 +66,7 @@ export async function generateTourAudio(providedOptions) {
     const text = getText(chapter)
     const outputDir = resolve(publicDir, 'audio', options.artifact)
     const mp3File = resolve(outputDir, `${chapter.id}.mp3`)
-    const alignmentFile = resolve(outputDir, `${chapter.id}.alignment.json`)
+    const alignmentFile = resolve(outputDir, `${chapter.id}.alignment.srt`)
     const subtitlesFile = resolve(outputDir, `${chapter.id}.subtitles.json`)
     await mkdir(outputDir, { recursive: true })
     const filesExist = await Promise.all([mp3File, alignmentFile, subtitlesFile].map(async (file) => {
@@ -77,31 +80,27 @@ export async function generateTourAudio(providedOptions) {
       }
       process.stdout.write(`Skip ${chapter.id}: MP3 already exists; no TTS request made${filesExist[1] || filesExist[2] ? '.' : ', but alignment/subtitles are missing.'}\n`)
     } else {
-      const apiKey = process.env.ELEVENLABS_API_KEY
-      if (!apiKey) throw new Error('Set ELEVENLABS_API_KEY in the local environment before generating paid audio.')
-      if (!options.voice) throw new Error('Provide --voice ID or set ELEVENLABS_VOICE_ID locally.')
-      const endpoint = new URL(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(options.voice)}/with-timestamps`)
-      endpoint.searchParams.set('output_format', 'mp3_44100_128')
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          model_id: 'eleven_multilingual_v2',
-          voice_settings: { stability: 0.82, similarity_boost: 0.78, style: 0.05, use_speaker_boost: true, speed: options.speed },
-        }),
-      })
-      if (!response.ok) throw new Error(`TTS failed for ${chapter.id}: HTTP ${response.status} ${await response.text()}`)
-      const result = await response.json()
-      if (!result.audio_base64 || !result.alignment) throw new Error(`TTS response for ${chapter.id} did not include audio and character alignment`)
-      const subtitles = groupCharacterAlignment(result.alignment)
-      if (!subtitles.length) throw new Error(`TTS response for ${chapter.id} produced no timed subtitles`)
-      const mp3Temp = `${mp3File}.tmp`
+      const python = process.env.PYTHON || 'python'
+      const mp3Temp = `${mp3File}.tmp.mp3`
       const alignmentTemp = `${alignmentFile}.tmp`
       const subtitlesTemp = `${subtitlesFile}.tmp`
+      try {
+        await execFileAsync(python, [
+          resolve(appDir, 'scripts/edge_tts_generate.py'), '--voice', options.voice, `--rate=${speedToEdgeRate(options.speed)}`,
+          '--text', text, '--media', mp3Temp, '--subtitles', alignmentTemp,
+        ], { windowsHide: true, maxBuffer: 1024 * 1024 })
+      } catch (error) {
+        const detail = String(error.stderr || error.message || '').trim()
+        if (detail.includes("No module named edge_tts") || error.code === 'ENOENT') {
+          throw new Error('Install the audio generator with "python -m pip install -r requirements-audio.txt" before generating audio.')
+        }
+        throw new Error(`Edge TTS failed for ${chapter.id}: ${detail}`)
+      }
+      const srt = await readFile(alignmentTemp, 'utf8')
+      const wordCues = restoreSubtitlePunctuation(parseSrtSubtitles(srt), text)
+      const subtitles = groupTimedSubtitles(wordCues)
+      if (!subtitles.length) throw new Error(`TTS response for ${chapter.id} produced no timed subtitles`)
       await Promise.all([
-        writeFile(mp3Temp, Buffer.from(result.audio_base64, 'base64')),
-        writeFile(alignmentTemp, `${JSON.stringify({ alignment: result.alignment, normalizedAlignment: result.normalized_alignment ?? null }, null, 2)}\n`),
         writeFile(subtitlesTemp, `${JSON.stringify(subtitles, null, 2)}\n`),
       ])
       await Promise.all([[mp3Temp, mp3File], [alignmentTemp, alignmentFile], [subtitlesTemp, subtitlesFile]].map(([from, to]) => rename(from, to)))
