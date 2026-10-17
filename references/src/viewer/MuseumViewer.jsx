@@ -303,6 +303,8 @@ function Scene({
 }
 
 function TourControls({ chapters, state, canStart, audio, onStart, onTogglePause, onPrevious, onNext, onExit, onReplay, onSeek, onToggleMute, onVolumeChange, onToggleCaptions }) {
+  const [playerPosition, setPlayerPosition] = useState(null)
+  const dragState = useRef(null)
   if (!chapters) return null
   const controlMode = getTourControlMode(state)
   if (controlMode !== 'player') {
@@ -326,17 +328,63 @@ function TourControls({ chapters, state, canStart, audio, onStart, onTogglePause
     : Math.min(1, (state.chapterIndex + currentTime / duration) / chapters.length)
   const chapterNumber = Math.min(state.chapterIndex + 1, chapters.length)
   const subtitle = audio?.usingAudio ? audio.currentSubtitle : chapter?.narration
+  const showCaption = Boolean(chapter && audio?.captionsEnabled && subtitle)
+  function startPlayerDrag(event) {
+    if (event.button !== 0) return
+    const stage = event.currentTarget.closest('.viewer-stage')
+    const container = event.currentTarget.closest('.artifact-tour-container')
+    if (!stage || !container) return
+    const stageRect = stage.getBoundingClientRect()
+    const containerRect = container.getBoundingClientRect()
+    dragState.current = {
+      pointerId: event.pointerId,
+      stageRect,
+      playerWidth: containerRect.width,
+      playerHeight: containerRect.height,
+      startX: event.clientX,
+      startY: event.clientY,
+      left: containerRect.left - stageRect.left,
+      top: containerRect.top - stageRect.top,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+  function movePlayerDrag(event) {
+    const drag = dragState.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    const maxLeft = Math.max(0, drag.stageRect.width - drag.playerWidth)
+    const maxTop = Math.max(0, drag.stageRect.height - drag.playerHeight)
+    setPlayerPosition({
+      left: Math.max(0, Math.min(maxLeft, drag.left + event.clientX - drag.startX)),
+      top: Math.max(0, Math.min(maxTop, drag.top + event.clientY - drag.startY)),
+    })
+  }
+  function endPlayerDrag(event) {
+    if (dragState.current?.pointerId === event.pointerId) dragState.current = null
+  }
+  function movePlayerByKeyboard(event) {
+    const offsets = { ArrowLeft: [-16, 0], ArrowRight: [16, 0], ArrowUp: [0, -16], ArrowDown: [0, 16] }
+    const offset = offsets[event.key]
+    if (!offset) return
+    event.preventDefault()
+    const stageRect = event.currentTarget.closest('.viewer-stage')?.getBoundingClientRect()
+    const containerRect = event.currentTarget.closest('.artifact-tour-container')?.getBoundingClientRect()
+    if (!stageRect || !containerRect) return
+    const left = playerPosition?.left ?? containerRect.left - stageRect.left
+    const top = playerPosition?.top ?? containerRect.top - stageRect.top
+    setPlayerPosition({
+      left: Math.max(0, Math.min(Math.max(0, stageRect.width - containerRect.width), left + offset[0])),
+      top: Math.max(0, Math.min(Math.max(0, stageRect.height - containerRect.height), top + offset[1])),
+    })
+  }
 
   return (
-    <>
-      {chapter && audio?.captionsEnabled && subtitle && (
-        <div className="artifact-tour-caption" role="status" aria-live="polite">
-          <span>{chapter.title}</span>
-          <p>{subtitle}</p>
-        </div>
-      )}
+    <div className="artifact-tour-container" style={playerPosition ? { left: playerPosition.left, top: playerPosition.top, right: 'auto', bottom: 'auto', margin: 0 } : undefined}>
+      <div className={`artifact-tour-caption${showCaption ? '' : ' is-hidden'}`} role="status" aria-live="polite" aria-hidden={!showCaption}>
+        <span>{chapter?.title || ''}</span>
+        <p>{showCaption ? subtitle : ''}</p>
+      </div>
       <div className="artifact-tour-player" aria-label="自动导览控制">
-        <div className="artifact-tour-player-top">
+        <div className="artifact-tour-player-top" role="group" tabIndex={0} aria-label="拖动导览框，可用方向键移动" title="拖动以移动导览框" onKeyDown={movePlayerByKeyboard} onPointerDown={startPlayerDrag} onPointerMove={movePlayerDrag} onPointerUp={endPlayerDrag} onPointerCancel={endPlayerDrag}>
           <div className="artifact-tour-chapter-label">
             <span>{`第 ${chapterNumber} / ${chapters.length} 章`}</span>
             <strong>{chapter?.title || '文物全貌'}</strong>
@@ -377,7 +425,7 @@ function TourControls({ chapters, state, canStart, audio, onStart, onTogglePause
           </button>
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
